@@ -1,7 +1,7 @@
-'''
+"""
 python_tracking_and_avoid.py
 CarrotChasing轨迹跟踪算法与APF避障算法融合
-'''
+"""
 
 
 import math
@@ -12,8 +12,6 @@ import threading
 from UAV import demo_keyboard_uav
 import keyboard
 from scipy import linalg
-import cv2
-import time
 
 
 def get_state(client):
@@ -173,15 +171,15 @@ def move_by_path_and_avoid(client, Path, K_track=None, delta=1, K_avoid=None,
                     p0 = pos_record[pos_num - 1]
                     p1 = pos_record[pos_num - 2]
                     Vra = (distance(p0, Wb) - distance(p1, Wb)) / dt
-                    if abs(Vra) < 0.6 * Vl and Frep[0] != 0 and Frep[1] != 0:  # 陷入局部极小值
+                    if abs(Vra) < 0.8 * Vl and Frep[0] != 0 and Frep[1] != 0:  # 陷入局部极小值
                         if ob_flag == False:
                             # 之前不是局部极小状态时，根据当前位置计算斥力偏向角theta
                             angle_g = myatan(Fatt[0], Fatt[1])
                             angle_r = myatan(Frep[0], Frep[1])
                             if isClockwise(angle_g, angle_r):
-                                theta = 15 * math.pi / 180
+                                theta = 60 * math.pi / 180
                             else:
-                                theta = -15 * math.pi / 180
+                                theta = -60 * math.pi / 180
                             ob_flag = True
                         # 之前为局部极小，则继续使用上一时刻的斥力偏向角theta
                         Frep = [math.cos(theta) * Frep[0] - math.sin(theta) * Frep[1],
@@ -260,11 +258,6 @@ def move_by_path_and_avoid_lqr(client, Path, K_track=None, delta=1, K_avoid=None
             return False
         return True
 
-    # def DLQR(A, B, Q, R):
-    #     S = np.matrix(linalg.solve_discrete_are(A, B, Q, R))
-    #     K = np.matrix(linalg.inv(B.T * S * B + R) * (B.T * S * A))
-    #     return K
-
     A = np.array([[1, 0, dt, 0],
                   [0, 1, 0, dt],
                   [0, 0, 1, 0],
@@ -327,12 +320,27 @@ def move_by_path_and_avoid_lqr(client, Path, K_track=None, delta=1, K_avoid=None
             for cam in ['0']:
                 info_obstacles.extend(Detection(client=client, radius_m=Q_search, camera_name=cam))
             for cylinder in info_obstacles:
+                state = get_state(client)
+                yaw = -state['orientation'][2]
+                Rz = np.array([[math.cos(yaw), math.sin(yaw)],
+                               [-math.sin(yaw), math.cos(yaw)]])
                 pos_obstacle = cylinder.relative_pose.position
-                P_search = np.array([pos_obstacle.x_val, pos_obstacle.z_val])
-                d_search = distance(P_search, P_curr[0:2])
+                P_search = (np.array([pos_obstacle.x_val, pos_obstacle.y_val])).dot(Rz.T)
+                d_search = np.linalg.norm(P_search)
                 Frep = Frep + \
                        Kr * (1 / d_search - 1 / Q_search) / (d_search ** 3) * \
-                       (P_curr[0:2] - P_search) * (distance(P_search, Wb) ** 2)
+                       (-P_search) * (distance(P_search, Wb) ** 2)
+                # pos_obstacle_left = cylinder.box3D.min
+                # pos_obstacle_right = cylinder.box3D.max
+                # P_search_list = np.array([np.array([pos_obstacle_left.x_val, pos_obstacle_left.y_val]),
+                #                           np.array([pos_obstacle_left.x_val, pos_obstacle_right.y_val]),
+                #                           np.array([pos_obstacle_right.x_val, pos_obstacle_left.y_val]),
+                #                           np.array([pos_obstacle_right.x_val, pos_obstacle_right.y_val])]).dot(Rz.T)
+                # for P_search in P_search_list:
+                #     d_search = np.linalg.norm(P_search)
+                #     Frep = Frep + \
+                #            Kr * (1 / d_search - 1 / Q_search) / (d_search ** 3) * \
+                #            (-P_search) * (distance(P_search, Wb) ** 2)
             # 未检测到障碍物，执行航路点跟踪
             if Frep[0] == 0 and Frep[1] == 0:
                 U1 = np.array((K0 * Pt_matrix + K1 * A.dot(Pt_matrix)).T)[0]
@@ -347,15 +355,15 @@ def move_by_path_and_avoid_lqr(client, Path, K_track=None, delta=1, K_avoid=None
                     p0 = pos_record[pos_num - 1]
                     p1 = pos_record[pos_num - 2]
                     Vra = (distance(p0, Wb) - distance(p1, Wb)) / dt
-                    if abs(Vra) < 0.6 * Vl and Frep[0] != 0 and Frep[1] != 0:  # 陷入局部极小值
-                        if ob_flag == False:
+                    if abs(Vra) < 0.95 * Vl and Frep[0] != 0 and Frep[1] != 0:  # 陷入局部极小值
+                        if not ob_flag:
                             # 之前不是局部极小状态时，根据当前位置计算斥力偏向角theta
                             angle_g = myatan(Fatt[0], Fatt[1])
                             angle_r = myatan(Frep[0], Frep[1])
                             if isClockwise(angle_g, angle_r):
-                                theta = 15 * math.pi / 180
+                                theta = 30 * math.pi / 180
                             else:
-                                theta = -15 * math.pi / 180
+                                theta = -30 * math.pi / 180
                             ob_flag = True
                         # 之前为局部极小，则继续使用上一时刻的斥力偏向角theta
                         Frep = [math.cos(theta) * Frep[0] - math.sin(theta) * Frep[1],
@@ -374,7 +382,6 @@ def move_by_path_and_avoid_lqr(client, Path, K_track=None, delta=1, K_avoid=None
             V_next = V_curr + U * dt                                # 计算速度
             if np.linalg.norm(V_next) > Vl:                         # 速度限幅
                 V_next = Vl * V_next / np.linalg.norm(V_next)
-                # U = (np.linalg.norm(V_next - V_curr)) * U / np.linalg.norm(U) / dt
             P_next = P_curr[0:2] + V_next * dt                           # 计算位置
             state_now = np.array([[P_curr[0], P_curr[1], V_curr[0], V_curr[1]]]).T  # 当前状态
             state_des = np.array([[P_next[0], P_next[1], V_next[0], V_next[1]]]).T  # 目标状态
@@ -406,16 +413,29 @@ if __name__ == "__main__":
     client.armDisarm(True)
 
     client.simFlushPersistentMarkers()
-    points = [airsim.Vector3r(20, 0, -3),
-              airsim.Vector3r(20, -20, -3),
+    points = [airsim.Vector3r(60, 0, -3),
+              airsim.Vector3r(70, -80, -3),
+              airsim.Vector3r(55, -120, -3),
               airsim.Vector3r(0, 0, -3)]
     # points = [airsim.Vector3r(20, 0, -3)]
     client.simPlotPoints(points, color_rgba=[0, 1, 0, 1], size=5, is_persistent=True)
 
     client.moveToZAsync(-3, 1).join()
-    move_by_path_and_avoid_lqr(client, points, epsilon=1, delta=2, dt=0.12, Ul=[1.5, 2], Q_search=7, Vl=2, K_avoid=[3, 40])
-    #
+    move_by_path_and_avoid_lqr(client, points, epsilon=1,
+                               delta=5, dt=0.12, Ul=[1, 2],
+                               Q_search=8, Vl=2,
+                               K_avoid=[3, 25],
+                               K_track=[2, 5, 2])
+    client.landAsync()
+    client.armDisarm(False)
+    client.enableApiControl(False)
+
     # client.moveToZAsync(-3, 2)
+    # client.moveByRollPitchYawZAsync(0, 0, math.pi, -3, 3)
     # thread_detect = threading.Thread(target=Detection_keep, args=(client,))
     # thread_detect.start()
     # demo_keyboard_uav.keyboard_uav(client)
+    # while True:
+    #     x, y = map(float, input('input:').split(' '))
+    #     client.moveToPositionAsync(x, y, -3, 2).join()
+    #     print(Detection(client))
