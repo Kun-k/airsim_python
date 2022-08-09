@@ -1,0 +1,16 @@
+calculate_pose.py用于利用深度图计算位置信息
+obstacles_detect.py用于检测障碍物信息
+
+使用obstacles_detect.py中的obstacles_detect函数进行目标检测
+（1）输入参数：
+	client：airsim.MultirotorClient类
+	dis_threshold：距离阈值（检测障碍物的距离范围，大于此距离的障碍物不检测）
+（2）返回值：
+	list（airsim.Box3D类）
+	其中每个Box3D包含：min：airsim.Vector3r(x_val=x_min, y_val=y_min, z_val=z_min)
+			  max：airsim.Vector3r(x_val=x_min, y_val=y_min, z_val=z_min)
+	相当于用长方体表示障碍物
+	是相对于相机（front_center）的位置	
+	其中x为前后方向（向前为正）
+	y为左右方向（向右为正）
+	z为上下方向（向下为正）
