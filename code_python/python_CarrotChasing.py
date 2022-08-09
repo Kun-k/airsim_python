@@ -9,7 +9,20 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def move_to_point(P, Va, psi, Wa, Wb, delta=1, K=0.5, K2=0, epsilon=0.02, dt=0.01):
+def move_to_point(P, Va, psi, Wa, Wb, delta=1, K=0.5, epsilon=0.02, dt=0.01):
+    """
+    在二维空间内，控制无人机跟踪路径Wa-Wb
+    :param P: 起始位置
+    :param Va: 速率上限
+    :param psi: 起始速度角度
+    :param Wa: 被跟踪路径出发点
+    :param Wb: 被跟踪路径终点
+    :param delta: 向前搜索下一个航路点的距离
+    :param K: 控制器参数
+    :param epsilon: 误差上限
+    :param dt: 迭代时间
+    :return: 无
+    """
     print(Wa, Wb, P)
     [Px, Py] = P
     theta = math.atan((Wb[1] - Wa[1]) / (Wb[0] - Wa[0]))
@@ -30,7 +43,7 @@ def move_to_point(P, Va, psi, Wa, Wb, delta=1, K=0.5, K2=0, epsilon=0.02, dt=0.0
         psi_d = math.atan((yt - Py) / (xt - Px))
         if xt < Px:
             psi_d += math.pi
-        u = K * (psi_d - psi) * Va + K2 * e
+        u = K * (psi_d - psi) * Va
         if u > 1:  # 限制u的范围
             u = 1
         psi = psi_d
@@ -63,7 +76,18 @@ def move_to_point(P, Va, psi, Wa, Wb, delta=1, K=0.5, K2=0, epsilon=0.02, dt=0.0
     plt.show()
 
 
-def move_by_path(P, Va, psi, Path, delta=1, K=0.5, K2=0, dt=0.01):
+def move_by_path(P, Va, psi, Path, delta=1, K=0.5, dt=0.01):
+    """
+    在二维空间内，控制无人机跟踪路径Path
+    :param P: 起始位置
+    :param Va: 速率上限
+    :param psi: 起始速度角度
+    :param Path: 被跟踪航路点集合
+    :param delta: 向前搜索下一个航路点的距离
+    :param K: 控制器参数
+    :param dt: 迭代时间
+    :return: 无
+    """
     def distance(A, B):
         return math.sqrt((A[0] - B[0]) ** 2 + (A[1] - B[1]) ** 2)
 
@@ -93,7 +117,7 @@ def move_by_path(P, Va, psi, Path, delta=1, K=0.5, K2=0, dt=0.01):
         theta = myatan(Wa, Wb)
         while True:
             theta_u = myatan(Wa, [Px, Py])
-            if theta_u == None:
+            if theta_u is None:
                 theta_u = theta
             beta = theta - theta_u
             Ru = distance(Wa, [Px, Py])
@@ -106,7 +130,7 @@ def move_by_path(P, Va, psi, Path, delta=1, K=0.5, K2=0, dt=0.01):
                     or (yt - Wb[1]) * (Wb[1] - Wa[1]) > 0:
                 break
             psi_d = myatan([Px, Py], [xt, yt])
-            u = K * (psi_d - psi) * Va + K2 * e
+            u = K * (psi_d - psi) * Va
             if u > 1:  # 限制u的范围
                 u = 1
             psi = psi_d
@@ -141,6 +165,21 @@ def move_by_path(P, Va, psi, Path, delta=1, K=0.5, K2=0, dt=0.01):
 
 
 def move_to_point_3d(P, V, Wa, Wb, K0=2, K1=2, K2=1, eposilon=0.02, dt=0.1, a0=2):
+    """
+    在三维空间内，控制无人机跟踪路径Wa-Wb
+    :param P: 起始位置
+    :param V: 起始速度
+    :param Wa: 被跟踪路径出发点
+    :param Wb: 被跟踪路径终点
+    :param K0: 控制器参数
+    :param K1: 控制器参数
+    :param K2: 控制器参数
+    :param epsilon: 误差上限
+    :param dt: 迭代时间
+    :param a0: 控制器输出上限
+    :return: 无
+    """
+
     def distance(A, B):
         return math.sqrt((A[0] - B[0]) ** 2 +
                          (A[1] - B[1]) ** 2 +
@@ -180,6 +219,19 @@ def move_to_point_3d(P, V, Wa, Wb, K0=2, K1=2, K2=1, eposilon=0.02, dt=0.1, a0=2
 
 
 def move_by_path_3d(P, V, Path, K0=2, K1=2, K2=1, dt=0.1, a0=2, delta=0.5):
+    """
+    在三维空间内，控制无人机跟踪路径Path
+    :param P: 起始位置
+    :param V: 起始速度
+    :param Path: 被跟踪路径
+    :param K0: 控制器参数
+    :param K1: 控制器参数
+    :param K2: 控制器参数
+    :param dt: 迭代时间
+    :param a0: 控制器输出上限
+    :param delta: 向前搜索下一个航路点的距离
+    :return: 无
+    """
     def distance(A, B):
         return math.sqrt((A[0] - B[0]) ** 2 +
                          (A[1] - B[1]) ** 2 +
@@ -229,8 +281,6 @@ def move_by_path_3d(P, V, Path, K0=2, K1=2, K2=1, dt=0.1, a0=2, delta=0.5):
 if __name__ == "__main__":
     # Path = [[0, 0], [10, 15], [15, 20], [20, 5]]
     # move_by_path([6, 3], 3, 0.5, Path, delta=0.1)
-    # move_to_point([3, 3], 3, 0, [0, 0], [10, 15])
-    # move_to_point_3d([1, 1, 1], [1, 1, 1], [0, 0, 0], [10, 15, 15], K0=1, K1=2, K2=0.8)
     Path = [[0, 0, 0], [10, 15, 15], [15, 20, 20], [20, 5, 5]]
     move_by_path_3d([1, 1, 1], [1, 1, 1], Path, K0=1, K1=2, K2=0.8)
 

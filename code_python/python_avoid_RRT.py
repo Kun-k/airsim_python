@@ -1,6 +1,6 @@
 '''
 python_avoid_RRT.py
-RRT法避障的python实现
+二维空间内RRT法避障的python实现
 '''
 
 
@@ -12,7 +12,7 @@ import sortedcontainers
 
 
 # 树节点
-class rtt_treenode():
+class rrt_treenode():
     def __init__(self, value, parent=None, cost_from_start=0, dis_to_aim=0):
         self.value = value
         self.children = []
@@ -46,10 +46,6 @@ class PriorityQueue(object):
         return len(self._queue)
 
 
-def distance(A, B):
-    return math.sqrt((A[0] - B[0]) ** 2 + (A[1] - B[1]) ** 2)
-
-
 def A_star(root, eposilon):
     q = PriorityQueue()
     q.push(root)
@@ -63,24 +59,23 @@ def A_star(root, eposilon):
     return []
 
 
-def myatan(A, B):
-    # A,B 分别为 出发点,目标点
-    x1, y1, x2, y2 = A[0], A[1], B[0], B[1]
-    if x1 != x2:
-        if x1 > x2:
-            return math.atan((y1 - y2) / (x1 - x2)) + math.pi
-        else:
-            return math.atan((y1 - y2) / (x1 - x2))
-    if x1 == x2 and y1 == y2:
-        return None
-    if x1 == x2 and y1 != y2:
-        if y1 > y2:
-            return -math.pi / 2
-        else:
-            return math.pi / 2
+def avoid_RRT(mymap, start, aim, p_sample, maxlimit, step, eposilon, isshow, Q_save):
+    """
+    :param mymap: 0-1二值化地图，0表示障碍物
+    :param start: 起始点
+    :param aim: 目标点
+    :param p_sample: 随机采样概率
+    :param maxlimit: 最大迭代次数
+    :param step: 搜索步长
+    :param eposilon: 误差上限
+    :param isshow: 是否显示搜索结果
+    :param Q_save: 安全距离
+    :return: 储存有二维信息的航路点列表
+    """
 
+    def distance(A, B):
+        return math.sqrt((A[0] - B[0]) ** 2 + (A[1] - B[1]) ** 2)
 
-def avoid_rtt(mymap, start, aim, p_sample, maxlimit, step, eposilon, isshow, Q_save):
     start = np.array(start)
     aim = np.array(aim)
     mapsize = mymap.shape
@@ -98,7 +93,7 @@ def avoid_rtt(mymap, start, aim, p_sample, maxlimit, step, eposilon, isshow, Q_s
             else:
                 tree_map[i].append(None)
     if tree_map[start[0]][start[1]] is None:
-        root = rtt_treenode(start, dis_to_aim=distance(start, aim))
+        root = rrt_treenode(start, dis_to_aim=distance(start, aim))
         tree_map[start[0]][start[1]] = root
     else:
         print("出发点处存在障碍物！")
@@ -150,7 +145,7 @@ def avoid_rtt(mymap, start, aim, p_sample, maxlimit, step, eposilon, isshow, Q_s
                     break
         if flag:  # 可行
             parenttree = tree_map[int(p_curr[0])][int(p_curr[1])]
-            newtree = rtt_treenode(p_next, parent=parenttree,
+            newtree = rrt_treenode(p_next, parent=parenttree,
                                    cost_from_start=parenttree.cost + step,
                                    dis_to_aim=distance(p_next, aim))
             tree_map[int(p_next[0])][int(p_next[1])] = newtree
@@ -184,20 +179,19 @@ def avoid_rtt(mymap, start, aim, p_sample, maxlimit, step, eposilon, isshow, Q_s
         path_plot = np.array(path).T
         plt.plot(path_plot[0], path_plot[1], c='red')
         plt.show()
-    plt.savefig('tmp.png')
     return path
 
 
 if __name__ == "__main__":
     # 读取地图图像并二值化
-    img = cv2.imread('6.png')
+    img = cv2.imread('map_avoid/6.png')
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     retval, mymap = cv2.threshold(gray, 0, 255, cv2.THRESH_OTSU)
     mymap = cv2.dilate(mymap, None, iterations=1).T
     mymap = cv2.erode(mymap, None, iterations=4) / 255
     path = []
     while len(path) == 0:
-        path = avoid_rtt(mymap, [0, 0], [380, 700], 0.1, 5000, 100, 50, True, 10)
+        path = avoid_RRT(mymap, [0, 0], [380, 700], 0.1, 5000, 100, 50, True, 10)
     for i in range(len(path)):
         print(i, ': (%.3f, %.3f)' %(path[i][0], path[i][1]))
     if len(path) != 0:
@@ -207,7 +201,7 @@ if __name__ == "__main__":
     # 增加高度信息并保存到本地，便于AirSim设置航路点
     path_for_airsim = []
     for p in path:
-        path_for_airsim.append([p[0] / 10, p[1] / 10, -3])
+        path_for_airsim.append([p[0] / 10, p[1] / 10, -3])  # 按需调整单位，这里使用的地图为10像素=1米
     path_for_airsim.append([38, 70, -3])
     path_for_airsim = np.array(path_for_airsim)
     np.save('path_for_airsim', path_for_airsim)

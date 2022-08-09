@@ -1,7 +1,7 @@
-'''
+"""
 python_tracking_and_avoid.py
 CarrotChasing轨迹跟踪算法与APF避障算法融合
-'''
+"""
 
 
 import math
@@ -10,22 +10,24 @@ import numpy as np
 import cv2
 
 
-'''
-P           初始位置
-V           初始速度
-Path        航路点集合
-mymap       储存有障碍物信息的地图
-K_track     轨迹跟踪控制器参数
-delta       向前搜索下一个航路点的距离
-K_avoid     避障控制器参数（引力，斥力）
-Q_search    搜索障碍物距离
-epsilon     误差上限
-Vl          速率上限
-Ul          控制器输出上限
-dt          迭代时间
-'''
 def move_by_path_and_avoid(P_start, V_start, Path, mymap, K_track=None, delta=1,
                            K_avoid=None, Q_search=5, epsilon=2, Vl=5, Ul=2, dt=0.2, ontime=False):
+    """
+    :param P_start: 初始位置
+    :param V_start: 初始速度
+    :param Path: 航路点集合
+    :param mymap: 储存有障碍物信息的0-1二值化地图，0表示障碍物
+    :param K_track: 轨迹跟踪控制器参数
+    :param delta: 向前搜索下一个航路点的距离
+    :param K_avoid: 避障控制器参数（引力，斥力）
+    :param Q_search: 搜索障碍物距离
+    :param epsilon: 误差上限
+    :param Vl: 速率上限
+    :param Ul: 控制器输出上限
+    :param dt: 迭代时间
+    :param ontime:
+    :return: 无
+    """
     def distance(A, B):
         return math.sqrt((A[0] - B[0]) ** 2 + (A[1] - B[1]) ** 2)
 
@@ -189,7 +191,7 @@ def move_by_path_and_avoid(P_start, V_start, Path, mymap, K_track=None, delta=1,
 
 if __name__ == "__main__":
     # 读取地图图像并二值化
-    img = cv2.imread('1.png')
+    img = cv2.imread('map_avoid/1.png')
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     retval, dst = cv2.threshold(gray, 0, 255, cv2.THRESH_OTSU)
     dst = cv2.dilate(dst, None, iterations=1)
