@@ -6,7 +6,7 @@ airsim 四旋翼轨迹跟踪 Carrot控制算法
 import airsim
 import math
 import numpy as np
-from UavAgent import get_state, move_by_acceleration_horizontal
+from UavAgent import get_state, move_by_acceleration
 from mymath import distance, myatan, distance_3d
 
 
@@ -106,7 +106,7 @@ def move_by_path_3d(client, Path, K0=1.5, K1=4, K2=0.6, dt=0.5, a0=1, delta=0.7)
                 U1 = U1 * a0 / np.linalg.norm(U1, ord=np.inf)
             U = -(U1 + V_m) / K2
             U_cmd = np.array(U)[:, 0]
-            move_by_acceleration_horizontal(client, U_cmd[0], U_cmd[1], U_cmd[2], dt * 10)
+            move_by_acceleration(client, U_cmd[0], U_cmd[1], U_cmd[2], dt * 10)
             d = np.linalg.norm(Pt - A.dot(Pt))
             # 画图
             plot_p1 = [airsim.Vector3r(P[0], P[1], P[2])]

@@ -8,7 +8,7 @@ import numpy as np
 import airsim
 import time
 from ObstacleDetection.obstacles_detect import obstacles_detect
-from UavAgent import move_by_acceleration_horizontal_yaw, get_state
+from UavAgent import move_by_acceleration_horizontal_yaw, get_state, move_tracking_lqr
 from mymath import distance, myatan, isClockwise
 
 
@@ -45,7 +45,7 @@ def move_by_path_and_avoid_APF(client, Path, K_track=None, delta=1, K_avoid=None
     V_curr = V_start
     V_last = np.array([0, 0])
     plot_p2 = [airsim.Vector3r(P_curr[0], P_curr[1], P_curr[2])]
-    pos_z = -3
+    height = -3
     Wb = P_curr[0:2]
     nowtime, lasttime = 0, 0
     for path_num in range(len(Path)):
@@ -88,7 +88,7 @@ def move_by_path_and_avoid_APF(client, Path, K_track=None, delta=1, K_avoid=None
                 U1 = np.array((K0 * Pt_matrix + K1 * A.dot(Pt_matrix)).T)[0]
                 if np.linalg.norm(U1, ord=np.inf) > Ul_track:
                     U1 = U1 * Ul_track / np.linalg.norm(U1, ord=np.inf)
-                U = -(U1 + V_curr) / K2  # 计算控制器输出并转换为array
+                U = -(U1 + V_curr[0:2]) / K2  # 计算控制器输出并转换为array
             # 检测到障碍物，执行避障
             else:
                 Frep = Frep / num_obstacles
@@ -101,7 +101,7 @@ def move_by_path_and_avoid_APF(client, Path, K_track=None, delta=1, K_avoid=None
                     Vra = (distance(p0, Wb) - distance(p1, Wb)) / (nowtime - lasttime)
                     lasttime = nowtime
                     if abs(Vra) < 0.95 * Ul_avoid and len(info_obstacles) != 0 \
-                            and np.linalg.norm(V_curr, ord=np.inf) < np.linalg.norm(V_last, ord=np.inf):  # 陷入局部极小值
+                            and np.linalg.norm(V_curr[0:2], ord=np.inf) < np.linalg.norm(V_last, ord=np.inf):  # 陷入局部极小值
                         # 之前不是局部极小状态时，根据当前位置计算斥力偏向角theta
                         angle_g = myatan([0, 0], [Fatt[0], Fatt[1]])
                         angle_g = 0 if angle_g is None else angle_g
@@ -122,17 +122,17 @@ def move_by_path_and_avoid_APF(client, Path, K_track=None, delta=1, K_avoid=None
                 U = Fatt + Frep  # 计算合力
                 if np.linalg.norm(U, ord=np.inf) > Ul_avoid:  # 控制器输出限幅
                     U = Ul_avoid * U / np.linalg.norm(U, ord=np.inf)
-                U = (U - V_curr) / K2
+                U = (U - V_curr[0:2]) / K2
             # 执行
-            V_next = V_curr + U * dt  # 计算速度
-            yaw = math.atan2(V_next[1], V_next[0])
-            move_by_acceleration_horizontal_yaw(client, U[0], U[1], pos_z, yaw, duration=dt, vehicle_name=vehicle_name)
+            V_next = V_curr[0:2] + U * dt  # 计算速度
+            P_next = P_curr[0:2] + V_next * dt
+            move_tracking_lqr(client, P_next, V_next, height, U[0:2], dt)
             # 画图和记录
             V_last = V_curr
             plot_p1 = plot_p2
             state = get_state(client, vehicle_name=vehicle_name)
             P_curr = np.array(state['position'])
-            V_curr = np.array(state['linear_velocity'])[0:2]
+            V_curr = np.array(state['linear_velocity'])
             plot_p2 = [airsim.Vector3r(P_curr[0], P_curr[1], P_curr[2])]
             client.simPlotArrows(plot_p1, plot_p2, arrow_size=8.0, color_rgba=[0.0, 0.0, 1.0, 1.0])
             client.simPlotLineStrip(plot_p1 + plot_p2, color_rgba=[1.0, 0.0, 0.0, 1.0], is_persistent=True)
@@ -152,13 +152,20 @@ if __name__ == "__main__":
     client.takeoffAsync(vehicle_name='UAV0')
     client.moveToZAsync(-3, 1, vehicle_name='UAV0').join()
 
+    # 手动设置航路点
     points = [airsim.Vector3r(60, 0, -3),
               airsim.Vector3r(70, -80, -3),
               airsim.Vector3r(55, -120, -3),
               airsim.Vector3r(0, 0, -3)]
 
-    move_by_path_and_avoid_APF(client, points, K_track=[1.5, 6, 1], delta=5, K_avoid=[3, 60], Q_search=8, epsilon=1,
-                               Ul=[2, 3], dt=0.3, vehicle_name='UAV0')
+    # # 读取RRT方法获取的航路点
+    # path_for_airsim = np.load('code_python/path_for_airsim.npy')
+    # points = []
+    # for p in path_for_airsim:
+    #     points.append(airsim.Vector3r(p[0], p[1], p[2]))
+    #
+    # move_by_path_and_avoid_APF(client, points, K_track=[1.5, 6, 1], delta=5, K_avoid=[3, 60], Q_search=8, epsilon=1,
+    #                            Ul=[2, 3], dt=0.3, vehicle_name='UAV0')
 
     client.landAsync(vehicle_name='UAV0').join()
     client.armDisarm(False, vehicle_name='UAV0')
