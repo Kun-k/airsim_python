@@ -164,8 +164,8 @@ if __name__ == "__main__":
     # for p in path_for_airsim:
     #     points.append(airsim.Vector3r(p[0], p[1], p[2]))
     #
-    # move_by_path_and_avoid_APF(client, points, K_track=[1.5, 6, 1], delta=5, K_avoid=[3, 60], Q_search=8, epsilon=1,
-    #                            Ul=[2, 3], dt=0.3, vehicle_name='UAV0')
+    move_by_path_and_avoid_APF(client, points, K_track=[1.5, 6, 1], delta=5, K_avoid=[3, 60], Q_search=8, epsilon=1,
+                               Ul=[2, 3], dt=0.3, vehicle_name='UAV0')
 
     client.landAsync(vehicle_name='UAV0').join()
     client.armDisarm(False, vehicle_name='UAV0')
